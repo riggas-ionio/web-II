@@ -1,5 +1,7 @@
 # Εβδομάδα 2: Προχωρημένες Τεχνολογίες Ανάπτυξης Εφαρμογών Διαδικτύου
 
+> 🇬🇧 [English version](README.en.md)
+
 ## **Άσκηση 1: Environment Setup**
 **Στόχος**: Εγκατάσταση Python environment και βασικές βιβλιοθήκες
 
@@ -13,8 +15,9 @@
 2. **Virtual Environment Creation**:
    ```bash
    python3 -m venv http_lab
-   source http_lab/bin/activate  # macOS/Linux
-   # ή Scripts\activate.bat  # Windows
+   source http_lab/bin/activate        # macOS/Linux
+   # http_lab\Scripts\activate.bat     # Windows (cmd)
+   # http_lab\Scripts\Activate.ps1     # Windows (PowerShell)
    ```
 
 3. **Package Installation**:
@@ -29,8 +32,12 @@
    print("Environment setup successful!")
    print(f"Requests version: {requests.__version__}")
    ```
+   Εκτέλεση:
+   ```bash
+   python test_setup.py
+   ```
 
-**Αναμενόμενο αποτέλεσμα**: Εμφάνιση Version number και μηνύματος "Environment setup successful!" 
+**Αναμενόμενο αποτέλεσμα**: Εμφάνιση του μηνύματος "Environment setup successful!" και της έκδοσης της βιβλιοθήκης requests.
 
 ---
 
@@ -39,10 +46,11 @@
 
 ### Κώδικας:
 ```python
+import json
 import requests
 
 # Simple GET request
-response = requests.get('https://httpbin.org/json')
+response = requests.get('https://httpbin.org/json', timeout=10)
 
 print("=== HTTP Response Analysis ===")
 print(f"Status Code: {response.status_code}")
@@ -51,7 +59,6 @@ print(f"Response Time: {response.elapsed.total_seconds()} seconds")
 print(f"Response Size: {len(response.content)} bytes")
 
 # Pretty print JSON
-import json
 data = response.json()
 print("\nJSON Response:")
 print(json.dumps(data, indent=2))
@@ -71,7 +78,7 @@ print(json.dumps(data, indent=2))
 
 Εκτελέστε το πιο κάτω πρόγραμμα και παρατηρήστε τα αποτελέσματα.
 + Συγκρίνετε τα URLs που δημιουργούνται από τη “χειροκίνητη” μέθοδο (Method 1) με αυτά που παράγει η “έξυπνη” μέθοδος (Method 2).
-+ Εντοπίστε τη διαφορά στην κωδικοποίηση ειδικών χαρακτήρων (π.χ. &, >, κενά).
++ Εντοπίστε τη διαφορά στην κωδικοποίηση ειδικών χαρακτήρων (π.χ. &, >, κενά). Τι παραλαμβάνει ο server σε κάθε περίπτωση;
 
 **Ερωτήσεις Κατανόησης**
 + Ποια είναι τα πλεονεκτήματα της χρήσης του ορίσματος params αντί για χειροκίνητη σύνθεση του URL;
@@ -79,52 +86,64 @@ print(json.dumps(data, indent=2))
 + Πώς θα μπορούσατε να στείλετε λίστες ή πολλαπλές τιμές για ένα ίδιο κλειδί παραμέτρου;
 + Τι θα συμβεί αν αλλάξετε τη βάση (base_url) σε ένα endpoint που δεν δέχεται GET παραμέτρους;
 
-**Επέκταση**. 
+**Επέκταση**
 * Δημιουργήστε μία συνάρτηση make_request(base_url, params) που:
     * Δέχεται μια βάση URL και ένα λεξικό παραμέτρων.
     * Εκτελεί το αίτημα με requests.get().
     * Επιστρέφει το JSON αποτέλεσμα.
 
 Καλέστε τη συνάρτηση με διαφορετικά σύνολα παραμέτρων (π.χ. άλλα ονόματα, πόλεις ή φίλτρα).
+
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```
-    import requests
+```python
+import requests
 
-    # Test different parameter methods
-    base_url = 'https://httpbin.org/get'
+# Test different parameter methods
+base_url = 'https://httpbin.org/get'
 
-    # Method 1: Manual URL construction
-    response1 = requests.get(f'{base_url}?name=Γιάννης&city=Αθήνα&age=25')
+# Method 1: Manual URL construction
+response1 = requests.get(f'{base_url}?name=Γιάννης&city=Αθήνα&age=25', timeout=10)
 
-    # Method 2: Using params dictionary (preferred)
-    params = {
-        'name': 'Μαρία',
-        'city': 'Θεσσαλονίκη', 
-        'age': 30,
-        'interests': ['programming', 'music', 'travel']
-    }
-    response2 = requests.get(base_url, params=params)
+# Method 2: Using params dictionary (preferred)
+params = {
+    'name': 'Μαρία',
+    'city': 'Θεσσαλονίκη',
+    'age': 30,
+    'interests': ['programming', 'music', 'travel']
+}
+response2 = requests.get(base_url, params=params, timeout=10)
 
-    print("=== Method 1 Results ===")
-    print(f"Final URL: {response1.url}")
-    print(f"Args received: {response1.json()['args']}")
+print("=== Method 1 Results ===")
+print(f"Final URL: {response1.url}")
+print(f"Args received: {response1.json()['args']}")
 
-    print("\n=== Method 2 Results ===")
-    print(f"Final URL: {response2.url}")
-    print(f"Args received: {response2.json()['args']}")
+print("\n=== Method 2 Results ===")
+print(f"Final URL: {response2.url}")
+print(f"Args received: {response2.json()['args']}")
 
-    # Special characters handling
-    special_params = {
-        'search': 'python & django',
-        'filter': 'price>100',
-        'sort': 'date desc'
-    }
-    response3 = requests.get(base_url, params=special_params)
-    print(f"\n=== Special Characters ===")
-    print(f"Encoded URL: {response3.url}")
-    ```    
+# Special characters handling
+special_params = {
+    'search': 'python & django',
+    'filter': 'price>100',
+    'sort': 'date desc'
+}
+
+# Manual construction with special characters (what goes wrong?)
+manual_url = f"{base_url}?search=python & django&filter=price>100&sort=date desc"
+response3 = requests.get(manual_url, timeout=10)
+print("\n=== Special Characters: Manual ===")
+print(f"Final URL: {response3.url}")
+print(f"Args received: {response3.json()['args']}")
+
+# Same parameters via params dictionary
+response4 = requests.get(base_url, params=special_params, timeout=10)
+print("\n=== Special Characters: params ===")
+print(f"Encoded URL: {response4.url}")
+print(f"Args received: {response4.json()['args']}")
+```
+
 </details>
 
 ---
@@ -132,9 +151,9 @@ print(json.dumps(data, indent=2))
 ## **Άσκηση 4: Headers Customization**
 **Στόχος**: Κατανόηση και χρήση HTTP headers
 
-Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.  
-+ Παρατηρήστε ποια headers στάλθηκαν από τον client και ποια σας επέστρεψε ο server.  
-+ Εντοπίστε τις διαφορές μεταξύ Request Headers και Response Headers.  
+Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.
++ Παρατηρήστε ποια headers στάλθηκαν από τον client και ποια σας επέστρεψε ο server. (Το httpbin.org/headers επιστρέφει τα headers όπως τα παρέλαβε — μπορεί να δείτε και κάποια που πρόσθεσαν ενδιάμεσοι servers, π.χ. `X-Amzn-Trace-Id`.)
++ Εντοπίστε τις διαφορές μεταξύ Request Headers και Response Headers.
 + Αλλάζει η απάντηση όταν χρησιμοποιείτε διαφορετικό User-Agent;
 
 **Ερωτήσεις Κατανόησης**
@@ -145,41 +164,46 @@ print(json.dumps(data, indent=2))
 + Τι αλλάζει αν αφαιρέσετε εντελώς τα custom headers από το αίτημα;
 
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```
-    import requests
+```python
+import requests
 
-    # Custom headers example
-    custom_headers = {
-        'User-Agent': 'HTTPLabWorkshop/1.0 (Educational Purpose)',
-        'Accept': 'application/json',
-        'Accept-Language': 'el-GR,en-US;q=0.9',
-        'X-Custom-Header': 'LabExercise4',
-        'X-Student-ID': '12345'
-    }
+# Custom headers example
+custom_headers = {
+    'User-Agent': 'HTTPLabWorkshop/1.0 (Educational Purpose)',
+    'Accept': 'application/json',
+    'Accept-Language': 'el-GR,en-US;q=0.9',
+    'X-Custom-Header': 'LabExercise4',
+    'X-Student-ID': '12345'
+}
 
-    response = requests.get('https://httpbin.org/headers', headers=custom_headers)
+response = requests.get('https://httpbin.org/headers', headers=custom_headers, timeout=10)
 
-    print("=== Request Headers Sent ===")
-    received_headers = response.json()['headers']
-    for header, value in received_headers.items():
-        print(f"{header}: {value}")
+print("=== Request Headers Sent (as received by the server) ===")
+received_headers = response.json()['headers']
+for header, value in received_headers.items():
+    print(f"{header}: {value}")
 
-    print("\n=== Response Headers Received ===")
-    interesting_headers = ['content-type', 'server', 'date', 'content-length']
-    for header in interesting_headers:
-        if header in response.headers:
-            print(f"{header}: {response.headers[header]}")
+print("\n=== Response Headers Received ===")
+interesting_headers = ['content-type', 'server', 'date', 'content-length']
+for header in interesting_headers:
+    if header in response.headers:
+        print(f"{header}: {response.headers[header]}")
 
-    # Browser simulation
-    browser_headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-    }
-    browser_response = requests.get('https://httpbin.org/user-agent', headers=browser_headers)
-    print(f"\n=== Browser Simulation ===")
-    print(f"Detected User-Agent: {browser_response.json()['user-agent']}")
-    ```
+# Browser simulation
+browser_headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+}
+browser_response = requests.get('https://httpbin.org/user-agent', headers=browser_headers, timeout=10)
+print("\n=== Browser Simulation ===")
+print(f"Detected User-Agent: {browser_response.json()['user-agent']}")
+
+# Default User-Agent of the requests library
+default_response = requests.get('https://httpbin.org/user-agent', timeout=10)
+print(f"Default requests User-Agent: {default_response.json()['user-agent']}")
+```
+
 </details>
 
 ---
@@ -187,72 +211,76 @@ print(json.dumps(data, indent=2))
 ## **Άσκηση 5: POST Requests με JSON**
 **Στόχος**: Αποστολή δεδομένων με POST requests
 
-Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.  
+Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.
 + Παρατηρήστε πώς αλλάζουν τα headers όταν χρησιμοποιείτε το json= έναντι του data=.
 + Ελέγξτε πώς εμφανίζονται τα ελληνικά δεδομένα στον server (UTF-8 κωδικοποίηση).
-+ Δοκιμάστε να “χαλάσετε” επίτηδες το JSON για να δείτε τι είδους σφάλμα παράγεται.
++ Δοκιμάστε να “χαλάσετε” επίτηδες το JSON για να δείτε πώς το αντιμετωπίζει ο server.
 
 **Ερωτήσεις Κατανόησης**
 + Ποια είναι η διαφορά ανάμεσα στο requests.post(..., json=data) και στο requests.post(..., data=json_string);
 + Γιατί το requests ορίζει αυτόματα το header Content-Type: application/json όταν χρησιμοποιούμε το json=;
 + Πώς βοηθά η παράμετρος ensure_ascii=False κατά την κωδικοποίηση JSON με ελληνικούς χαρακτήρες;
-+ Ποιο είναι το αποτέλεσμα της “λανθασμένης” αποστολής JSON (με μονά εισαγωγικά); Τι θα δείτε στην απάντηση του server;
++ Ποιο είναι το αποτέλεσμα της “λανθασμένης” αποστολής JSON (με μονά εισαγωγικά); Τι θα δείτε στην απάντηση του server; Γιατί δεν προκύπτει exception στον client;
 + Πώς θα μπορούσατε να προσθέσετε μηχανισμό ελέγχου σφαλμάτων (error handling) για περιπτώσεις που ο server δεν επιστρέφει έγκυρο JSON;
 
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```python
-    import requests
-    import json
-    from datetime import datetime
+```python
+import requests
+import json
+from datetime import datetime
 
-    # Student data to send
-    student_data = {
-        'name': 'Ελένη Παπαδοπούλου',
-        'email': 'eleni@university.gr',
-        'student_id': 'CS2021123',
-        'courses': ['Data Structures', 'Web Technologies', 'Databases'],
-        'semester': 6,
-        'gpa': 8.5,
-        'enrollment_date': datetime.now().isoformat(),
-        'is_active': True
-    }
+# Student data to send
+student_data = {
+    'name': 'Ελένη Παπαδοπούλου',
+    'email': 'eleni@university.gr',
+    'student_id': 'CS2021123',
+    'courses': ['Data Structures', 'Web Technologies', 'Databases'],
+    'semester': 6,
+    'gpa': 8.5,
+    'enrollment_date': datetime.now().isoformat(),
+    'is_active': True
+}
 
-    # Method 1: Using json parameter (automatic header setting)
-    print("=== Method 1: JSON Parameter ===")
-    response1 = requests.post('https://httpbin.org/post', json=student_data)
-    print(f"Status: {response1.status_code}")
-    print(f"Content-Type sent: {response1.request.headers['content-type']}")
-    print(f"Data received by server: {response1.json()['json']}")
+# Method 1: Using json parameter (automatic header setting)
+print("=== Method 1: JSON Parameter ===")
+response1 = requests.post('https://httpbin.org/post', json=student_data, timeout=10)
+print(f"Status: {response1.status_code}")
+print(f"Content-Type sent: {response1.request.headers['content-type']}")
+print(f"Raw body sent: {response1.request.body}")
+print(f"Data received by server: {response1.json()['json']}")
 
-    # Method 2: Manual JSON encoding
-    print("\n=== Method 2: Manual JSON ===")
-    json_string = json.dumps(student_data, ensure_ascii=False)  # Greek characters
-    headers = {'Content-Type': 'application/json; charset=utf-8'}
-    response2 = requests.post('https://httpbin.org/post', data=json_string, headers=headers)
-    print(f"Manual encoding successful: {response2.status_code == 200}")
+# Method 2: Manual JSON encoding
+print("\n=== Method 2: Manual JSON ===")
+json_string = json.dumps(student_data, ensure_ascii=False)  # Keep Greek characters as-is
+headers = {'Content-Type': 'application/json; charset=utf-8'}
+response2 = requests.post('https://httpbin.org/post', data=json_string, headers=headers, timeout=10)
+print(f"Manual encoding successful: {response2.status_code == 200}")
+print(f"Raw body sent: {json_string}")
+print(f"Data received by server: {response2.json()['json']}")
 
-    # Error case - Invalid JSON
-    print("\n=== Error Handling ===")
-    try:
-        invalid_data = "{'invalid': 'json syntax'}"  # Single quotes = invalid JSON
-        response3 = requests.post('https://httpbin.org/post', data=invalid_data, 
-                                headers={'Content-Type': 'application/json'})
-        print("This might cause issues on the server side")
-    except Exception as e:
-        print(f"Error: {e}")
-    ```
+# Invalid JSON: the client does not validate it - the server receives it as-is
+print("\n=== Invalid JSON ===")
+invalid_data = "{'invalid': 'json syntax'}"  # Single quotes = invalid JSON
+response3 = requests.post('https://httpbin.org/post', data=invalid_data,
+                          headers={'Content-Type': 'application/json'}, timeout=10)
+result = response3.json()
+print(f"Status: {response3.status_code}")
+print(f"Raw data received by server: {result['data']}")
+print(f"Parsed JSON on server: {result['json']}")  # None -> the server could not parse it
+```
+
 </details>
 
 ---
 
 ## **Άσκηση 6: Form Data POST**
-**Στόχος**: Αποστολή form data (application/x-www-form-urlencoded)
+**Στόχος**: Αποστολή form data (application/x-www-form-urlencoded) και αρχείων (multipart/form-data)
 
-Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.  
+Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.
 + Πώς φαίνονται τα δεδομένα της φόρμας στο αποτέλεσμα του httpbin.org/post;
-+ Πώς αλλάζει το Content-Type όταν προσθέτετε αρχεία;
++ Πώς αλλάζει το Content-Type όταν προσθέτετε αρχεία; Τι είναι το `boundary`;
 + Ποια πεδία θεωρούνται “form fields” και ποια “file uploads”;
 
 **Ερωτήσεις Κατανόησης**
@@ -262,62 +290,64 @@ print(json.dumps(data, indent=2))
 + Πώς θα μπορούσατε να στείλετε περισσότερα από ένα αρχεία στο ίδιο αίτημα;
 + Τι θα συμβεί αν προσπαθήσετε να στείλετε δυαδικό αρχείο (.jpg, .zip) χωρίς να καθορίσετε τύπο MIME;
 
-
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```python
-    import requests
+```python
+import requests
 
-    # Traditional form data
-    form_data = {
-        'username': 'student123',
-        'password': 'secretpassword',
-        'email': 'student@university.gr',
-        'remember_me': 'on',
-        'terms_accepted': 'true'
-    }
+# Traditional form data
+form_data = {
+    'username': 'student123',
+    'password': 'secretpassword',
+    'email': 'student@university.gr',
+    'remember_me': 'on',
+    'terms_accepted': 'true'
+}
 
-    print("=== Form Data POST ===")
-    response = requests.post('https://httpbin.org/post', data=form_data)
-    print(f"Status: {response.status_code}")
-    print(f"Content-Type: {response.request.headers.get('content-type')}")
-    print(f"Form data received: {response.json()['form']}")
+print("=== Form Data POST ===")
+response = requests.post('https://httpbin.org/post', data=form_data, timeout=10)
+print(f"Status: {response.status_code}")
+print(f"Content-Type: {response.request.headers.get('content-type')}")
+print(f"Raw body sent: {response.request.body}")
+print(f"Form data received: {response.json()['form']}")
 
-    # File upload simulation
-    print("\n=== File Upload Simulation ===")
-    files = {
-        'assignment': ('homework.txt', 'This is my homework content', 'text/plain'),
-        'screenshot': ('screen.png', b'\x89PNG\r\n\x1a\n...', 'image/png')
-    }
-    additional_data = {
-        'student_id': 'CS2021123',
-        'course': 'Web Technologies'
-    }
+# File upload simulation
+print("\n=== File Upload Simulation ===")
+files = {
+    'assignment': ('homework.txt', 'This is my homework content', 'text/plain'),
+    'screenshot': ('screen.png', b'\x89PNG\r\n\x1a\n...', 'image/png')
+}
+additional_data = {
+    'student_id': 'CS2021123',
+    'course': 'Web Technologies'
+}
 
-    upload_response = requests.post('https://httpbin.org/post', 
-                                files=files, 
-                                data=additional_data)
+upload_response = requests.post('https://httpbin.org/post',
+                                files=files,
+                                data=additional_data,
+                                timeout=10)
 
-    print(f"Upload status: {upload_response.status_code}")
-    print(f"Files received: {list(upload_response.json()['files'].keys())}")
-    print(f"Form data: {upload_response.json()['form']}")
+print(f"Upload status: {upload_response.status_code}")
+print(f"Files received: {list(upload_response.json()['files'].keys())}")
+print(f"Form data: {upload_response.json()['form']}")
 
-    # Compare Content-Types
-    print("\n=== Content-Type Comparison ===")
-    print(f"JSON POST Content-Type: application/json")
-    print(f"Form POST Content-Type: application/x-www-form-urlencoded")
-    print(f"File Upload Content-Type: multipart/form-data")
-    ```
+# Compare Content-Types (as actually sent by requests)
+json_response = requests.post('https://httpbin.org/post', json=form_data, timeout=10)
+print("\n=== Content-Type Comparison ===")
+print(f"JSON POST Content-Type:   {json_response.request.headers['content-type']}")
+print(f"Form POST Content-Type:   {response.request.headers['content-type']}")
+print(f"File Upload Content-Type: {upload_response.request.headers['content-type']}")
+```
+
 </details>
-
 
 ---
 
 ## **Άσκηση 7: Error Handling Basics**
 **Στόχος**: Διαχείριση HTTP errors και exceptions
 
-Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.  
+Εκτελέστε το πρόγραμμα και μελετήστε την έξοδο.
 
 **Ερωτήσεις Κατανόησης**
 + Ποια είναι η διαφορά ανάμεσα στα σφάλματα HTTPError και ConnectionError;
@@ -327,58 +357,59 @@ print(json.dumps(data, indent=2))
 + Τι είδους εξαιρέσεις χειρίζεται η requests.exceptions.RequestException;
 
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```python
-    import requests
-    from requests.exceptions import RequestException
+```python
+import requests
 
-    # Test different error scenarios
-    test_urls = {
-        'valid': 'https://httpbin.org/json',
-        'not_found': 'https://httpbin.org/status/404',
-        'server_error': 'https://httpbin.org/status/500',
-        'timeout_test': 'https://httpbin.org/delay/10',
-        'invalid_domain': 'https://this-domain-does-not-exist-12345.com'
-    }
+# Test different error scenarios
+test_urls = {
+    'valid': 'https://httpbin.org/json',
+    'not_json': 'https://httpbin.org/html',
+    'not_found': 'https://httpbin.org/status/404',
+    'server_error': 'https://httpbin.org/status/500',
+    'timeout_test': 'https://httpbin.org/delay/10',
+    'invalid_domain': 'https://this-domain-does-not-exist-12345.com'
+}
 
-    def test_url(name, url):
-        print(f"\n=== Testing {name.upper()} ===")
+def test_url(name, url):
+    print(f"\n=== Testing {name.upper()} ===")
+    try:
+        response = requests.get(url, timeout=3)
+        print(f"📨 Status received: {response.status_code}")
+
+        # Check for HTTP errors (4xx, 5xx)
+        response.raise_for_status()
+        print("✅ No HTTP errors")
+
+        # Try to parse JSON
         try:
-            response = requests.get(url, timeout=3)
-            print(f"✅ Status: {response.status_code}")
-            
-            # Check for HTTP errors (4xx, 5xx)
-            response.raise_for_status()
-            print("✅ No HTTP errors")
-            
-            # Try to parse JSON
-            try:
-                data = response.json()
-                print(f"✅ JSON parsed successfully: {len(data)} items")
-            except ValueError:
-                print("⚠️  Response is not valid JSON")
-                
-        except requests.exceptions.HTTPError as e:
-            print(f"❌ HTTP Error: {e}")
-            print(f"   Status Code: {response.status_code}")
-            
-        except requests.exceptions.ConnectionError:
-            print(f"❌ Connection Error: Cannot reach server")
-            
-        except requests.exceptions.Timeout:
-            print(f"❌ Timeout: Request took longer than 3 seconds")
-            
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Request Error: {e}")
+            data = response.json()
+            print(f"✅ JSON parsed successfully: {len(data)} top-level key(s)")
+        except ValueError:
+            print("⚠️  Response is not valid JSON")
 
-    # Test all scenarios
-    for name, url in test_urls.items():
-        test_url(name, url)
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ HTTP Error: {e}")
+        print(f"   Status Code: {e.response.status_code}")
 
-    print(f"\n=== Summary ===")
-    print("✅ = Success, ⚠️ = Warning, ❌ = Error")
-    ```
+    except requests.exceptions.ConnectionError:
+        print("❌ Connection Error: Cannot reach server")
+
+    except requests.exceptions.Timeout:
+        print("❌ Timeout: Request took longer than 3 seconds")
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request Error: {e}")
+
+# Test all scenarios
+for name, url in test_urls.items():
+    test_url(name, url)
+
+print("\n=== Summary ===")
+print("✅ = Success, ⚠️ = Warning, ❌ = Error")
+```
+
 </details>
 
 ---
@@ -396,72 +427,77 @@ print(json.dumps(data, indent=2))
 + Πώς οι σωστές ρυθμίσεις timeout βελτιώνουν την αξιοπιστία και απόδοση ενός client;
 
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```
-    import requests
-    import time
-    from datetime import datetime
+```python
+import requests
+import time
+from datetime import datetime
 
-    def test_timeout_scenarios():
-        scenarios = [
-            ('No timeout (dangerous)', None),
-            ('Short timeout (3s)', 3),
-            ('Long timeout (30s)', 30),
-            ('Tuple timeout (connect=2, read=10)', (2, 10)),
-        ]
-        
-        test_url = 'https://httpbin.org/delay/5'  # 5 second delay
-        
-        for description, timeout_value in scenarios:
-            print(f"\n=== {description} ===")
-            start_time = datetime.now()
-            
-            try:
-                if timeout_value is None:
-                    print("⚠️  SKIPPING no-timeout test for safety")
-                    continue
-                    
-                response = requests.get(test_url, timeout=timeout_value)
-                end_time = datetime.now()
-                duration = (end_time - start_time).total_seconds()
-                
-                print(f"✅ Success in {duration:.2f} seconds")
-                print(f"   Status: {response.status_code}")
-                
-            except requests.exceptions.Timeout:
-                end_time = datetime.now()
-                duration = (end_time - start_time).total_seconds()
-                print(f"❌ Timeout after {duration:.2f} seconds")
-                
-            except Exception as e:
-                print(f"❌ Error: {e}")
+def test_timeout_scenarios():
+    scenarios = [
+        ('No timeout (dangerous)', None),
+        ('Short timeout (3s)', 3),
+        ('Long timeout (30s)', 30),
+        ('Tuple timeout (connect=2, read=10)', (2, 10)),
+    ]
 
-    def demonstrate_best_practices():
-        print(f"\n=== Best Practices Demo ===")
-        
-        # Good timeout configuration
-        CONNECT_TIMEOUT = 3  # 3 seconds for connection
-        READ_TIMEOUT = 10    # 10 seconds for reading
-        
-        urls = [
-            'https://httpbin.org/json',           # Fast response
-            'https://httpbin.org/delay/2',        # Medium response
-            'https://httpbin.org/delay/8',        # Slow response
-        ]
-        
-        for url in urls:
-            try:
-                start = time.time()
-                response = requests.get(url, timeout=(CONNECT_TIMEOUT, READ_TIMEOUT))
-                duration = time.time() - start
-                print(f"✅ {url}: {response.status_code} in {duration:.2f}s")
-            except requests.exceptions.Timeout:
-                print(f"⏰ {url}: Timed out")
+    test_url = 'https://httpbin.org/delay/5'  # 5 second delay
 
-    test_timeout_scenarios()
-    demonstrate_best_practices()
-    ```
+    for description, timeout_value in scenarios:
+        print(f"\n=== {description} ===")
+        start_time = datetime.now()
+
+        try:
+            if timeout_value is None:
+                print("⚠️  SKIPPING no-timeout test for safety")
+                continue
+
+            response = requests.get(test_url, timeout=timeout_value)
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+
+            print(f"✅ Success in {duration:.2f} seconds")
+            print(f"   Status: {response.status_code}")
+
+        except requests.exceptions.Timeout:
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            print(f"❌ Timeout after {duration:.2f} seconds")
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error: {e}")
+
+def demonstrate_best_practices():
+    print("\n=== Best Practices Demo ===")
+
+    # Good timeout configuration
+    CONNECT_TIMEOUT = 3  # 3 seconds for connection
+    READ_TIMEOUT = 10    # 10 seconds for reading
+
+    urls = [
+        'https://httpbin.org/json',           # Fast response
+        'https://httpbin.org/delay/2',        # Medium response
+        'https://httpbin.org/delay/8',        # Slow response (still within READ_TIMEOUT)
+        'https://httpbin.org/delay/12',       # Too slow (exceeds READ_TIMEOUT)
+    ]
+
+    for url in urls:
+        start = time.perf_counter()
+        try:
+            response = requests.get(url, timeout=(CONNECT_TIMEOUT, READ_TIMEOUT))
+            duration = time.perf_counter() - start
+            print(f"✅ {url}: {response.status_code} in {duration:.2f}s")
+        except requests.exceptions.Timeout:
+            duration = time.perf_counter() - start
+            print(f"⏰ {url}: Timed out after {duration:.2f}s")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ {url}: {e}")
+
+test_timeout_scenarios()
+demonstrate_best_practices()
+```
+
 </details>
 
 ---
@@ -469,10 +505,10 @@ print(json.dumps(data, indent=2))
 ## **Άσκηση 9: JSON Processing**
 **Στόχος**: Εργασία με JSON responses από APIs
 
-**Αναπτύξτε ένα πρόγραμμα Python που:** 
-+ Διαβάζει μονάδες χρήστη από το JSONPlaceholder API (/users/1).
+**Αναπτύξτε ένα πρόγραμμα Python που:**
++ Διαβάζει τα δεδομένα ενός χρήστη από το JSONPlaceholder API (/users/1).
 + Πλοηγείται με ασφάλεια σε nested JSON fields.
-+ Διαχειρίζεται JSON arrays, υπολογίζει σύνολα, φιλτράρει δεδομένα και εμφανίζει στατιστικά.
++ Διαχειρίζεται JSON arrays (/users), υπολογίζει σύνολα, φιλτράρει δεδομένα και εμφανίζει στατιστικά.
 + Χρησιμοποιεί συναρτήσεις για ασφαλή πρόσβαση σε πεδία που μπορεί να λείπουν.
 
 **Ερωτήσεις Κατανόησης**
@@ -483,94 +519,103 @@ print(json.dumps(data, indent=2))
 + Τι γίνεται αν ένα πεδίο λείπει στο JSON από το API;
 
 <details>
-    <b>Κώδικας:</b>
+<summary><b>Κώδικας</b></summary>
 
-    ```python
-    import requests
-    import json
+```python
+import requests
+from collections import Counter
 
-    def explore_json_api():
-        print("=== JSON Placeholder API Exploration ===")
-        
-        # Fetch user data
-        response = requests.get('https://jsonplaceholder.typicode.com/users/1')
-        user = response.json()
-        
-        print("=== Basic User Information ===")
-        print(f"Name: {user['name']}")
-        print(f"Email: {user['email']}")
-        print(f"Phone: {user['phone']}")
-        
-        # Navigate nested JSON
-        print("\n=== Address Information ===")
-        address = user['address']
-        print(f"Street: {address['street']} {address['suite']}")
-        print(f"City: {address['city']}")
-        print(f"Zipcode: {address['zipcode']}")
-        
-        # Deeply nested data
-        geo = address['geo']
-        print(f"Coordinates: {geo['lat']}, {geo['lng']}")
-        
-        # Company information
-        print("\n=== Company Information ===")
-        company = user['company']
-        print(f"Company: {company['name']}")
-        print(f"Catchphrase: {company['catchPhrase']}")
+BASE_URL = 'https://jsonplaceholder.typicode.com'
 
-    def safe_json_navigation():
-        print("\n=== Safe JSON Navigation ===")
-        
-        def safe_get(data, *keys, default=None):
-            """Safely navigate nested dictionaries"""
-            for key in keys:
-                if isinstance(data, dict) and key in data:
-                    data = data[key]
-                else:
-                    return default
-            return data
-        
-        response = requests.get('https://jsonplaceholder.typicode.com/users/1')
-        user = response.json()
-        
-        # Safe navigation examples
-        company_name = safe_get(user, 'company', 'name', default='Unknown Company')
-        geo_lat = safe_get(user, 'address', 'geo', 'lat', default='0')
-        website = safe_get(user, 'website', default='No website')
-        
-        print(f"Company: {company_name}")
-        print(f"Latitude: {geo_lat}")
-        print(f"Website: {website}")
-        
-        # Handle missing data
-        missing_field = safe_get(user, 'social_media', 'twitter', default='Not provided')
-        print(f"Twitter: {missing_field}")
+def fetch_json(path):
+    response = requests.get(f'{BASE_URL}{path}', timeout=10)
+    response.raise_for_status()
+    return response.json()
 
-    def work_with_json_arrays():
-        print("\n=== Working with JSON Arrays ===")
-        
-        # Fetch all users
-        response = requests.get('https://jsonplaceholder.typicode.com/users')
-        users = response.json()
-        
-        print(f"Total users: {len(users)}")
-        
-        # Process array data
-        print("\n=== Users Summary ===")
-        for user in users[:3]:  # First 3 users
-            print(f"ID: {user['id']}, Name: {user['name']}, City: {user['address']['city']}")
-        
-        # Data analysis
-        cities = [user['address']['city'] for user in users]
-        unique_cities = set(cities)
-        print(f"\nUnique cities: {', '.join(unique_cities)}")
-        
-        # Filter data
-        gmail_users = [user for user in users if 'gmail' in user['email'].lower()]
-        print(f"Gmail users: {len(gmail_users)}")
+def explore_json_api():
+    print("=== JSON Placeholder API Exploration ===")
 
-    explore_json_api()
-    safe_json_navigation()
-    work_with_json_arrays()
-    ```
+    # Fetch user data
+    user = fetch_json('/users/1')
+
+    print("=== Basic User Information ===")
+    print(f"Name: {user['name']}")
+    print(f"Email: {user['email']}")
+    print(f"Phone: {user['phone']}")
+
+    # Navigate nested JSON
+    print("\n=== Address Information ===")
+    address = user['address']
+    print(f"Street: {address['street']} {address['suite']}")
+    print(f"City: {address['city']}")
+    print(f"Zipcode: {address['zipcode']}")
+
+    # Deeply nested data
+    geo = address['geo']
+    print(f"Coordinates: {geo['lat']}, {geo['lng']}")
+
+    # Company information
+    print("\n=== Company Information ===")
+    company = user['company']
+    print(f"Company: {company['name']}")
+    print(f"Catchphrase: {company['catchPhrase']}")
+
+def safe_json_navigation():
+    print("\n=== Safe JSON Navigation ===")
+
+    def safe_get(data, *keys, default=None):
+        """Safely navigate nested dictionaries"""
+        for key in keys:
+            if isinstance(data, dict) and key in data:
+                data = data[key]
+            else:
+                return default
+        return data
+
+    user = fetch_json('/users/1')
+
+    # Safe navigation examples
+    company_name = safe_get(user, 'company', 'name', default='Unknown Company')
+    geo_lat = safe_get(user, 'address', 'geo', 'lat', default='0')
+    website = safe_get(user, 'website', default='No website')
+
+    print(f"Company: {company_name}")
+    print(f"Latitude: {geo_lat}")
+    print(f"Website: {website}")
+
+    # Handle missing data
+    missing_field = safe_get(user, 'social_media', 'twitter', default='Not provided')
+    print(f"Twitter: {missing_field}")
+
+def work_with_json_arrays():
+    print("\n=== Working with JSON Arrays ===")
+
+    # Fetch all users
+    users = fetch_json('/users')
+
+    print(f"Total users: {len(users)}")
+
+    # Process array data
+    print("\n=== Users Summary ===")
+    for user in users[:3]:  # First 3 users
+        print(f"ID: {user['id']}, Name: {user['name']}, City: {user['address']['city']}")
+
+    # Data analysis
+    cities = [user['address']['city'] for user in users]
+    unique_cities = sorted(set(cities))
+    print(f"\nUnique cities: {', '.join(unique_cities)}")
+
+    # Statistics: email top-level domains (.biz, .org, ...)
+    tlds = Counter(user['email'].rsplit('.', 1)[-1].lower() for user in users)
+    print(f"Email TLDs: {dict(tlds)}")
+
+    # Filter data
+    biz_users = [user['name'] for user in users if user['email'].lower().endswith('.biz')]
+    print(f".biz users ({len(biz_users)}): {', '.join(biz_users)}")
+
+explore_json_api()
+safe_json_navigation()
+work_with_json_arrays()
+```
+
 </details>
