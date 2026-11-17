@@ -1,0 +1,1147 @@
+openapi: 3.1.0
+info:
+  title: Corfu Events & Bookings API
+  version: 1.0.0
+  description: |
+    Assignment 2026-27, Advanced Web Technologies, Ionian University.
+
+    An API for cultural events in Corfu: search events, book seats and pay
+    through the course payment service (`ionio-pay`).
+
+    Conventions (as in Labs 5-7):
+    - Every error is JSON with the `Error` schema. Errors with a business meaning
+      also carry a machine-readable `code` (e.g. `SOLD_OUT`).
+    - Lists return a JSON array, with the `X-Total-Count` and `Link` headers.
+    - Every request except `/about` and `/health` needs the `X-API-Key` header
+      (or, as a bonus, a JWT in `Authorization: Bearer ...`).
+    - Every authenticated response may be `429`, with a `Retry-After` header.
+
+servers:
+  - url: /api/v1
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+tags:
+  - name: About
+  - name: Health
+  - name: Auth
+    description: Bonus (JWT).
+  - name: Users
+  - name: Events
+  - name: Bookings
+  - name: Payments
+
+paths:
+  /about:
+    get:
+      tags: [About]
+      operationId: getAbout
+      summary: The development team
+      security: []
+      responses:
+        '200':
+          description: Team members and dataset summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/About'
+
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health of the API and its dependencies
+      description: Used by the Docker `HEALTHCHECK`. Not rate limited.
+      security: []
+      responses:
+        '200':
+          description: Everything works
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: The database is unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /auth/token:
+    post:
+      tags: [Auth]
+      operationId: createToken
+      summary: (Bonus) Exchange an API key for a short-lived JWT
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '201':
+          description: A signed JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /users:
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a user (admin only)
+      description: |
+        Returns the new user's API key **once**; only a hash of it should be stored.
+        The first admin comes from the `ADMIN_API_KEY` environment variable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: The username already exists (`code` = `USERNAME_TAKEN`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getCurrentUser
+      summary: The user of the API key
+      responses:
+        '200':
+          description: The current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /users/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      summary: Change a user's role, status or rate limit (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: Search events
+      parameters:
+        - in: query
+          name: q
+          description: Free text, case-insensitive, in `title`, `description` and `venue.name`.
+          schema:
+            type: string
+            maxLength: 100
+        - in: query
+          name: category
+          schema:
+            $ref: '#/components/schemas/Category'
+        - in: query
+          name: from
+          description: Events with `starts_at` >= this moment.
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          description: Events with `starts_at` < this moment.
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: source_type
+          schema:
+            $ref: '#/components/schemas/SourceType'
+        - in: query
+          name: available
+          description: If `true`, only events with `seats_available` > 0 that have not started.
+          schema:
+            type: boolean
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [starts_at, -starts_at, price_cents, -price_cents]
+            default: starts_at
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: One page of events
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: Add an event (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /events/{event_id}:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: One event
+      responses:
+        '200':
+          description: The event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    put:
+      tags: [Events]
+      operationId: replaceEvent
+      summary: Replace an event (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '200':
+          description: Replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/CapacityConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      tags: [Events]
+      operationId: updateEvent
+      summary: Partially update an event (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPatch'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/CapacityConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      summary: The bookings of the current user (all bookings for an admin)
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - in: query
+          name: event_id
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: One page of bookings, newest first
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [Bookings]
+      operationId: createBooking
+      summary: Book seats for an event
+      description: |
+        Seats are reserved immediately. A free event (`price_cents` = 0) gives a
+        `confirmed` booking. Otherwise the booking is `pending` and expires at
+        `expires_at` (now + `BOOKING_TTL_SECONDS`) if it is not paid; its seats are
+        then released.
+
+        Two concurrent requests must never book more seats than `capacity`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: The event does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: |
+            `code` = `SOLD_OUT` (not enough seats) or `EVENT_STARTED` (the event has already started).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /bookings/{booking_id}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      summary: One booking
+      description: Another user's booking gives `404`, not `403`, so that its existence is not revealed.
+      responses:
+        '200':
+          description: The booking
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      tags: [Bookings]
+      operationId: updateBooking
+      summary: Change the number of seats of a pending booking
+      description: |
+        Requires `If-Match` with the booking's current `ETag` (optimistic locking).
+        `expires_at` does not change.
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingPatch'
+      responses:
+        '200':
+          description: Updated
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            `code` = `BOOKING_NOT_PENDING` or `SOLD_OUT` (not enough seats for the increase).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: |
+            `If-Match` does not match the current `ETag`: someone else changed the booking
+            (`code` = `PRECONDITION_FAILED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '428':
+          description: '`If-Match` is missing (`code` = `PRECONDITION_REQUIRED`).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags: [Bookings]
+      operationId: cancelBooking
+      summary: Cancel a booking
+      description: |
+        The booking becomes `cancelled` (it is not deleted) and its seats are released.
+        Only before the event starts.
+
+        A paid booking is refunded through `ionio-pay` (bonus). Without the bonus,
+        cancelling a paid booking gives `409` with `code` = `REFUND_NOT_SUPPORTED`.
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            `code` = `BOOKING_NOT_ACTIVE` (already `cancelled` or `expired`), `EVENT_STARTED`
+            or `REFUND_NOT_SUPPORTED`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '502':
+          $ref: '#/components/responses/PaymentProviderError'
+
+  /bookings/{booking_id}/payment:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    post:
+      tags: [Payments]
+      operationId: payBooking
+      summary: Pay a pending booking through ionio-pay
+      description: |
+        Charges `amount_cents` through `ionio-pay` and makes the booking `confirmed`.
+
+        **Idempotency:** the client sends an `Idempotency-Key`. A repeated request with the
+        same key and body returns the **same** status code and body, without a second
+        charge, and with the header `Idempotent-Replayed: true`. The key is forwarded to
+        `ionio-pay`, so that a retry after a timeout is safe.
+
+        A declined card (`402`) leaves the booking `pending`: the client may retry with a
+        new key, until `expires_at`.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '200':
+          description: Paid; the booking is `confirmed`
+          headers:
+            Idempotent-Replayed:
+              description: '`true` when this is a replay of an earlier response.'
+              schema:
+                type: string
+                enum: ['true']
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: |
+            The card was declined (`code` = `PAYMENT_DECLINED`). The `message` says why
+            (`card_declined`, `insufficient_funds`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: '`code` = `BOOKING_NOT_PENDING` (expired, cancelled, already paid or free).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: |
+            The `Idempotency-Key` was already used with a different body or booking
+            (`code` = `IDEMPOTENCY_KEY_REUSED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '502':
+          $ref: '#/components/responses/PaymentProviderError'
+        '504':
+          description: |
+            `ionio-pay` did not answer within `PAYMENT_TIMEOUT_SECONDS`
+            (`code` = `PAYMENT_PROVIDER_TIMEOUT`). The charge **may** have happened: the
+            client retries with the same `Idempotency-Key`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bonus. Issued by `POST /auth/token`.
+
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000000
+        default: 1
+    PerPage:
+      in: query
+      name: per_page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    UserId:
+      in: path
+      name: user_id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    EventId:
+      in: path
+      name: event_id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    BookingId:
+      in: path
+      name: booking_id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  headers:
+    Location:
+      description: URL of the new resource
+      schema:
+        type: string
+    ETag:
+      description: Version of the booking; changes on every change (strong ETag, in quotes)
+      schema:
+        type: string
+      example: '"3"'
+    XTotalCount:
+      description: Total number of results (all pages)
+      schema:
+        type: integer
+        minimum: 0
+    Link:
+      description: RFC 8288 links `first`, `prev`, `next`, `last`
+      schema:
+        type: string
+    RetryAfter:
+      description: Seconds until the user may send requests again
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    BadRequest:
+      description: Invalid parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: The API key (or JWT) is missing, wrong, or belongs to an inactive user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The user is not an admin
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The resource does not exist (or belongs to another user)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    CapacityConflict:
+      description: |
+        The new `capacity` is lower than the seats already booked
+        (`code` = `CAPACITY_BELOW_BOOKED`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: The user exceeded the rate limit and is blocked for `block_seconds`
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PaymentProviderError:
+      description: |
+        `ionio-pay` failed (5xx, also after a retry) or refused the request
+        (`code` = `PAYMENT_PROVIDER_ERROR`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message, status]
+      properties:
+        error:
+          type: string
+          description: The HTTP reason phrase
+          examples: [Conflict]
+        message:
+          type: string
+          examples: [Only 2 seats left]
+        status:
+          type: integer
+          examples: [409]
+        code:
+          type: string
+          description: Machine-readable reason, where the spec defines one
+          examples: [SOLD_OUT]
+
+    About:
+      type: object
+      required: [team]
+      properties:
+        team:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: string
+                description: Student ID (AM)
+                examples: [inf2023001]
+              name:
+                type: string
+                examples: [Alice Papadopoulou]
+              role:
+                type: [string, 'null']
+        dataset:
+          type: object
+          properties:
+            events:
+              type: integer
+              minimum: 0
+            sources:
+              type: array
+              items:
+                type: string
+                format: uri
+
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, error]
+          description: '`degraded` when only the payment provider is unreachable'
+        database:
+          type: string
+          enum: [ok, error]
+        payment_provider:
+          type: string
+          enum: [ok, error]
+
+    Token:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Seconds
+
+    RateLimit:
+      type: object
+      description: |
+        More than `requests` requests within `window_seconds` blocks the user for
+        `block_seconds` (every request then gets `429`).
+      properties:
+        requests:
+          type: integer
+          minimum: 1
+          default: 60
+        window_seconds:
+          type: integer
+          minimum: 1
+          default: 60
+        block_seconds:
+          type: integer
+          minimum: 0
+          default: 180
+
+    Role:
+      type: string
+      enum: [user, admin]
+
+    User:
+      type: object
+      required: [id, username, role, active, rate_limit, created_at]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+        full_name:
+          type: [string, 'null']
+        role:
+          $ref: '#/components/schemas/Role'
+        active:
+          type: boolean
+        rate_limit:
+          $ref: '#/components/schemas/RateLimit'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    UserWithKey:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [api_key]
+          properties:
+            api_key:
+              type: string
+              description: Shown only here, once
+              examples: [ptd_9f86d081884c7d659a2feaa0c55ad015]
+
+    UserInput:
+      type: object
+      required: [username]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          pattern: '^[a-z0-9_]{3,50}$'
+        full_name:
+          type: [string, 'null']
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/Role'
+        rate_limit:
+          $ref: '#/components/schemas/RateLimit'
+
+    UserPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        full_name:
+          type: [string, 'null']
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/Role'
+        active:
+          type: boolean
+        rate_limit:
+          $ref: '#/components/schemas/RateLimit'
+
+    Category:
+      type: string
+      enum: [music, theatre, cinema, dance, exhibition, talk, workshop, sports, festival, other]
+
+    SourceType:
+      type: string
+      enum: [university, social_media, municipality, venue_site, news, other]
+
+    Venue:
+      type: object
+      required: [name, lat, lon]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          examples: [Ionian Academy]
+        address:
+          type: [string, 'null']
+          maxLength: 300
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+          examples: [39.6205]
+        lon:
+          type: number
+          minimum: -180
+          maximum: 180
+          examples: [19.9229]
+
+    Source:
+      type: object
+      description: Where the event was found
+      required: [url, type, retrieved_at]
+      properties:
+        url:
+          type: string
+          format: uri
+        type:
+          $ref: '#/components/schemas/SourceType'
+        retrieved_at:
+          type: string
+          format: date
+
+    EventFields:
+      type: object
+      description: The fields of an event that a client may set
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        category:
+          $ref: '#/components/schemas/Category'
+        starts_at:
+          type: string
+          format: date-time
+          description: With a time zone, e.g. `2027-03-12T20:30:00+02:00`
+        ends_at:
+          type: [string, 'null']
+          format: date-time
+          description: After `starts_at`
+        venue:
+          $ref: '#/components/schemas/Venue'
+        organizer:
+          type: [string, 'null']
+          maxLength: 200
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 100000
+        price_cents:
+          type: integer
+          minimum: 0
+          description: Price per seat in cents (0 = free). Money is never a float.
+        image_url:
+          type: [string, 'null']
+          format: uri
+        source:
+          $ref: '#/components/schemas/Source'
+
+    EventInput:
+      description: The body of `POST`/`PUT /events` and one item of `data/events.json`
+      allOf:
+        - $ref: '#/components/schemas/EventFields'
+      required: [title, category, starts_at, venue, capacity, price_cents, source]
+      unevaluatedProperties: false
+
+    EventPatch:
+      description: Like `EventInput`, every field optional
+      allOf:
+        - $ref: '#/components/schemas/EventFields'
+      minProperties: 1
+      unevaluatedProperties: false
+
+    Event:
+      allOf:
+        - $ref: '#/components/schemas/EventFields'
+      required: [id, title, category, starts_at, venue, capacity, price_cents, source,
+                 seats_available, currency, created_at]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        seats_available:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: '`capacity` minus the seats of `pending` and `confirmed` bookings'
+        currency:
+          type: string
+          const: EUR
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    BookingStatus:
+      type: string
+      enum: [pending, confirmed, cancelled, expired]
+
+    BookingInput:
+      type: object
+      required: [event_id, seats]
+      additionalProperties: false
+      properties:
+        event_id:
+          type: integer
+          minimum: 1
+        seats:
+          type: integer
+          minimum: 1
+          maximum: 10
+
+    BookingPatch:
+      type: object
+      required: [seats]
+      additionalProperties: false
+      properties:
+        seats:
+          type: integer
+          minimum: 1
+          maximum: 10
+
+    PaymentInput:
+      type: object
+      required: [card_token]
+      additionalProperties: false
+      properties:
+        card_token:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: A test token of ionio-pay, e.g. `tok_visa`
+          examples: [tok_visa]
+
+    Payment:
+      type: object
+      required: [charge_id, amount_cents, currency, paid_at]
+      properties:
+        charge_id:
+          type: string
+          description: The id of the charge in ionio-pay
+          examples: [ch_3f2a9c]
+        amount_cents:
+          type: integer
+        currency:
+          type: string
+          const: EUR
+        paid_at:
+          type: string
+          format: date-time
+        refund_id:
+          type: [string, 'null']
+          description: Set when a cancelled booking was refunded (bonus)
+
+    Booking:
+      type: object
+      required: [id, event_id, user_id, seats, status, amount_cents, currency, created_at, expires_at, payment]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event_id:
+          type: integer
+        user_id:
+          type: integer
+        seats:
+          type: integer
+          minimum: 1
+          maximum: 10
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        amount_cents:
+          type: integer
+          minimum: 0
+          description: '`seats` x `price_cents` of the event'
+        currency:
+          type: string
+          const: EUR
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+          description: Set only while `pending`
+        payment:
+          oneOf:
+            - $ref: '#/components/schemas/Payment'
+            - type: 'null'
