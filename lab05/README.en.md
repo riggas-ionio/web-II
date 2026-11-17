@@ -251,6 +251,8 @@ r = requests.post(f'{BASE}/users', data='not json', headers={'Content-Type': 'te
 print(r.status_code)                                         # 400
 ```
 
+**Note:** The validation here is deliberately simple: it checks that the fields exist, not that they have the right form. We will come back to this in Lab 7.
+
 ---
 
 ## Exercise 3: RESTful Resource - Users (PUT, PATCH & DELETE)
@@ -1068,7 +1070,7 @@ print(requests.get(URL, timeout=5).status_code)                                 
 **Goal:** At most `RATE_LIMIT` requests per minute per IP (default 10). This is the other side of the `429` we handled as a client in Lab 3.
 
 **Requirements:**
-1. Create `app/ratelimit.py` with `register_rate_limit(app)` and an `@app.before_request`.
+1. Create `app/ratelimit.py` with `register_rate_limit(app)` and an `@app.before_request`. Call it in `create_app()` **after** `register_hooks(app)`: an `abort` in a `before_request` skips those registered later, so without `g.start_time` the `after_request` would give a `500` instead of a `429`.
 2. For each IP, keep the timestamps of the requests of the last minute (`deque`), and drop the older ones.
 3. When the limit is exceeded: `abort(429, description=..., retry_after=<seconds>)`. Werkzeug adds the `Retry-After` header, and the error handler of Exercise 4 keeps it.
 4. Do not limit `/health`. Why? (Think about Docker's `HEALTHCHECK`.)

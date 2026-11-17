@@ -251,6 +251,8 @@ r = requests.post(f'{BASE}/users', data='not json', headers={'Content-Type': 'te
 print(r.status_code)                                         # 400
 ```
 
+**Σημείωση:** Το validation εδώ είναι σκόπιμα απλό: ελέγχει ότι τα πεδία υπάρχουν, όχι αν έχουν τη σωστή μορφή. Θα επανέλθουμε σε αυτό στο Εργαστήριο 7.
+
 ---
 
 ## Άσκηση 3: RESTful Resource - Users (PUT, PATCH & DELETE)
@@ -1068,7 +1070,7 @@ print(requests.get(URL, timeout=5).status_code)                                 
 **Στόχος:** Το πολύ `RATE_LIMIT` requests ανά λεπτό ανά IP (default 10). Είναι η άλλη πλευρά του `429` που χειριστήκαμε ως client στο Εργαστήριο 3.
 
 **Απαιτήσεις:**
-1. Δημιουργήστε `app/ratelimit.py` με `register_rate_limit(app)` και ένα `@app.before_request`.
+1. Δημιουργήστε `app/ratelimit.py` με `register_rate_limit(app)` και ένα `@app.before_request`. Καλέστε το στο `create_app()` **μετά** το `register_hooks(app)`: το `abort` σε ένα `before_request` παραλείπει όσα έχουν καταχωριστεί αργότερα, οπότε χωρίς το `g.start_time` το `after_request` θα έδινε `500` αντί για `429`.
 2. Κρατήστε για κάθε IP τις χρονοσφραγίδες των requests του τελευταίου λεπτού (`deque`), και πετάξτε τις παλαιότερες.
 3. Όταν ξεπεραστεί το όριο: `abort(429, description=..., retry_after=<seconds>)`. Το header `Retry-After` το προσθέτει το Werkzeug και ο error handler της Άσκησης 4 το κρατά.
 4. Μην περιορίζετε το `/health`. Γιατί; (Σκεφτείτε το `HEALTHCHECK` του Docker.)
